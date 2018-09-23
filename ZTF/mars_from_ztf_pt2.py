@@ -3,7 +3,7 @@
 
 import pandas as pd
 import json
-import ephem 
+#import ephem 
 from astropy.coordinates import EarthLocation,SkyCoord
 from astropy.time import Time
 from astropy import units as u
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 
-observing_location = EarthLocation(lat='18.3381', lon='-64.8941', height=500*u.m) 
+observing_location = EarthLocation(lat='18.3381', lon='-64.8941', height=450*u.m) 
 def az_alt(time, ra, dec):
 	observing_time = Time(time)  
 	aa = AltAz(location=observing_location, obstime=observing_time)
@@ -135,9 +135,8 @@ double_sorted = final_useful.sort_values(by = ['max alt hours after 7pm', 'max a
 #Cut out objects that don't go above an altitude of 35 degrees during our observing time
 sorted_with_cuts = double_sorted.drop(double_sorted[double_sorted['max alt'] < 35].index)
 
-#Show the final table
-print("Final Table")
-print(sorted_with_cuts)
+#Give the index the proper name: ZTF candidate ID
+sorted_with_cuts =  sorted_with_cuts.rename_axis('ZTF candidate ID')
 
 
 #CSV filename

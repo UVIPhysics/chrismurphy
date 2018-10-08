@@ -57,7 +57,6 @@ yesterday = str(yesterday)
 #Time_gt default value = Yesterday (relative to day you run the code)
 enddate = yesterday.split(' ')[0]
 
-print(startdate, enddate)
 
 #Real-bogus default threshold
 rb = .90
@@ -79,7 +78,7 @@ if start_end_rb['realbogus'] is not None:
 
 
 
-
+print(startdate, enddate)
 
 
 
@@ -88,8 +87,8 @@ if start_end_rb['realbogus'] is not None:
 params = (
     ('sort_value', 'jd'), 
     ('sort_order', 'desc'), #Sort the jd in descending order (most recent comes first)
-    ('time__gt', yesterday), 
-    ('time__lt', today),
+    ('time__gt', startdate), 
+    ('time__lt', enddate),
     ('rb__gte', rb), #0 rb = bogus, 1 rb = real 
     ('format', 'json'), 
 )
@@ -99,16 +98,16 @@ params = (
 response = requests.get('https://mars.lco.global/', params=params)
 
 
-print(response.content)
+#print(response.content)
 
 
-# #Naming convention of file
-# json_downloaded_file = today + '_ztf_interesting_candidates.txt'
+#Naming convention of file
+json_downloaded_file = today + '_ztf_interesting_candidates.txt'
 
-# #write the results of our query to a filename
-# file = open(json_downloaded_file, 'w+') 
-# file.write(response.content) 
-# file.close
+#write the results of our query to a filename
+file = open(json_downloaded_file, 'w+') 
+file.write(response.content) 
+file.close
 
 
 

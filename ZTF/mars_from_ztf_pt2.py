@@ -1,3 +1,11 @@
+'''
+Christopher Murphy 
+A. Cucchiara 
+From downloaded transients, find which ones can be observed with VIRT, and which time is best to
+observe the candidate
+'''
+
+
 # For every candidate, find which ones will be above the horizon during our observing hours
 # First set the observer location: (latitude, longitude, elevation)
 
@@ -39,7 +47,13 @@ print('\n')
 
 
 #File to open = File we wrote in part one, Assuming we do part one and part two on same day
-file = today + '_ztf_interesting_candidates.txt'
+#file = today + '_ztf_interesting_candidates.txt'
+
+#Hardcoding name of file for testing purposes
+file = '2018-10-06_ztf_interesting_candidates.txt'
+
+
+
 
 with open(file, 'r') as f:
     data = json.load(f)
@@ -65,7 +79,7 @@ dec = df1['dec'].tolist()
 candid = df1['candid'].tolist()
 # print ra, dec, candid
 # print len(ra), len(dec), len(candid)
-print(str(len(ra)) + " transient candidates above certain real/bogus threshold")
+print(str(len(ra)) + " transient candidates above given real/bogus threshold")
 print('\n')
 
 
@@ -90,11 +104,29 @@ for i, r, d in zip(candid, ra, dec):
 		alt.append(float(altitude))
 		az_alt_dict['azimuth'] = az 
 		az_alt_dict['altitude'] = alt
-	#print az_alt_dict
-	candidate_az_alt[i] =  az_alt_dict
-	#print '\n'
+	count = 0
+	for al in az_alt_dict['altitude']:
+		if al > 30:
+			count += 1
+		if count >= 3:
+			candidate_az_alt[i] =  az_alt_dict
 
-#print candidate_az_alt
+
+unobservable_targets = list(set()) # To be used to delete items later
+
+print(candid)
+print(len(candid))
+
+print('+++++++')
+print candidate_az_alt
+print len(candidate_az_alt.items())
+
+
+
+
+
+
+
 
 
 #Create a table of candidate info
@@ -111,20 +143,56 @@ for k, v in candidate_az_alt.items():
     time_max_alt['maximum altitude'] = float(max_alt)
     new_dict[k] = time_max_alt
 
+
 #Merge candidates candidates and new_dict into one table
-for k,v in candidates.items():
-    for keys, values in new_dict.items():
-        if v['candid'] == keys:
-            #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
-            v['max alt hours after 7pm'] = values['time']
-            v['max alt'] = values['maximum altitude']
-            #v['check'] = keys
+# pretty_dict = {}
+# for k,v in candidates.items():
+#     for keys, values in new_dict.items():
+#         if v['candid'] == keys:
+#             #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
+#             # v['max alt hours after 7pm'] = values['time']
+#             # v['max alt'] = values['maximum altitude']
+#             pretty_dict['ZTF ID'] = k
+#             pretty_dict['max alt hours after 7pm'] = values['time']
+#             pretty_dict['max alt'] = values['maximum altitude']
+#             pretty_dict['ra'] = v['ra']
+#             pretty_dict['dec'] = v['dec']
+#             pretty_dict['magap'] = v['magap']
+#             pretty_dict['magpsf'] = v['magpsf']
+#             pretty_dict['classtar'] = v['classtar']
+#             pretty_dict['rb'] = v['rb']
+#             # pretty_dict[''] =
+#             # pretty_dict[''] =
+#             # pretty_dict[''] =
+#             # pretty_dict[''] =
+
+#         # else:
+#         # 	print (k,v)
+#         # 	del k[v]
+#             #v['check'] = keys
+# print(pretty_dict)
+
+for keys, values in new_dict.items():
+	for k,v in candidates.items():
+		if v['candid'] == keys:
+		    #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
+		    v['max alt hours after 7pm'] = values['time']
+		    v['max alt'] = values['maximum altitude']
+		    #v['check'] = keys
+
+
+
 
 #The table is flipped at first
 final_form_flipped = pd.DataFrame(candidates)
-
+print final_form_flipped
 #Simply transpose the table to fix this
 final_form = final_form_flipped.T 
+print(final_form)
+print('+++++++')
+#Delete Rows which didn't make the observing cut (Above 30 deg for 3 hours min)
+final_form = final_form.dropna()
+print(final_form)
 
 #Pull only the 'useful' columns to the table. Note: There is way more availble columns to pull. Talk to Dr. C
 final_useful = final_form[['max alt hours after 7pm', 'max alt','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb', 'filter']]
@@ -146,44 +214,32 @@ csv_file = today + '_organized_output_ZTF_data.csv'
 #Write final table () to csv file 
 sorted_with_cuts.to_csv(csv_file)
 
+print(sorted_with_cuts)
 
-###Plotting Functionality if desired
+
+
+
+
+
+
+
+
+
+##Plotting Functionality if desired
 # for k, v in candidate_az_alt.items():
 # 	max_alt = max(v['altitude'])
 # 	maxindex = v['altitude'].index(max_alt)
 # 	max_time = four_hours[maxindex]
-# 	plt.scatter(four_hourss, v['altitude'])
-# 	plt.scatter(max_time, max_alt)
-# 	plt.annotate(str(max_alt) + ' occurs at ' + str(max_time), xy=(max_time, max_alt), xytext = (max_time, max_alt - 10))
-# 	plt.ylim(0, 90)
-# 	plt.title(str(k) + 'Altitude vs Time during Observation Hours')
-# 	plt.ylabel('Altitude')
-# 	plt.xlabel('Minutes after 7pm ' + today)
-# 	plt.savefig(str(k) + '.png')
-# 	plt.clf()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 	if max_alt > 35:
+# 		plt.scatter(four_hours, v['altitude'])
+# 		plt.scatter(max_time, max_alt)
+# 		plt.annotate(str(max_alt) + ' occurs at ' + str(max_time), xy=(max_time, max_alt), xytext = (max_time, max_alt - 10))
+# 		plt.ylim(0, 90)
+# 		plt.title(str(k) + 'Altitude vs Time during Observation Hours')
+# 		plt.ylabel('Altitude')
+# 		plt.xlabel('Minutes after 7pm ' + today)
+# 		plt.savefig(str(k) + '.png')
+# 		plt.clf()
 
 
 

@@ -11,7 +11,6 @@ observe the candidate
 
 import pandas as pd
 import json
-#import ephem 
 from astropy.coordinates import EarthLocation,SkyCoord
 from astropy.time import Time
 from astropy import units as u
@@ -50,7 +49,7 @@ print('\n')
 #file = today + '_ztf_interesting_candidates.txt'
 
 #Hardcoding name of file for testing purposes
-file = '2018-10-06_ztf_interesting_candidates.txt'
+file = '2018-10-08_ztf_interesting_candidates.txt'
 
 
 
@@ -73,23 +72,19 @@ df_transposed = df.T
 df1 = df_transposed[['filter','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb']]
 
 
-
 ra = df1['ra'].tolist()
 dec = df1['dec'].tolist()
 candid = df1['candid'].tolist()
-# print ra, dec, candid
+#print ra, dec, candid
 # print len(ra), len(dec), len(candid)
 print(str(len(ra)) + " transient candidates above given real/bogus threshold")
 print('\n')
 
 
-# four_hours_in_minutes = list(range(4*60)) # 0 - (4*60) consecutive numbers
-# time_change = four_hours_in_minutes*u.minute # let astropy know that every number represents a minute
 
 
 four_hours = list(range(5)) #Create list of 0-4
 time_change = four_hours*u.hour # let astropy know that every number represents an hour
-#print(time_change)
 
 candidate_az_alt = {}
 
@@ -105,106 +100,58 @@ for i, r, d in zip(candid, ra, dec):
 		az_alt_dict['azimuth'] = az 
 		az_alt_dict['altitude'] = alt
 	count = 0
+	
 	for al in az_alt_dict['altitude']:
 		if al > 30:
 			count += 1
+			 
 		if count >= 3:
 			candidate_az_alt[i] =  az_alt_dict
 
+print str(len(candidate_az_alt.items())) + " candidates available to view with VIRT tonight"
+print '\n'
 
-unobservable_targets = list(set()) # To be used to delete items later
-
-print(candid)
-print(len(candid))
-
-print('+++++++')
-print candidate_az_alt
-print len(candidate_az_alt.items())
-
-
-
-
-
-
-
-
-
-#Create a table of candidate info
+#Create a table with candidate name, max alt, time of max alt
 new_dict = {}
 for k, v in candidate_az_alt.items():
     time_max_alt = {}
     max_alt = max(v['altitude'])
     maxindex = v['altitude'].index(max_alt)
-    #print(maxindex, max_alt)
     max_time = four_hours[maxindex] 
-#     print(max_time)
-#     print(maxindex, max_time, max_alt)
     time_max_alt['time'] = float(max_time)
     time_max_alt['maximum altitude'] = float(max_alt)
     new_dict[k] = time_max_alt
 
 
-#Merge candidates candidates and new_dict into one table
-# pretty_dict = {}
-# for k,v in candidates.items():
-#     for keys, values in new_dict.items():
-#         if v['candid'] == keys:
-#             #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
-#             # v['max alt hours after 7pm'] = values['time']
-#             # v['max alt'] = values['maximum altitude']
-#             pretty_dict['ZTF ID'] = k
-#             pretty_dict['max alt hours after 7pm'] = values['time']
-#             pretty_dict['max alt'] = values['maximum altitude']
-#             pretty_dict['ra'] = v['ra']
-#             pretty_dict['dec'] = v['dec']
-#             pretty_dict['magap'] = v['magap']
-#             pretty_dict['magpsf'] = v['magpsf']
-#             pretty_dict['classtar'] = v['classtar']
-#             pretty_dict['rb'] = v['rb']
-#             # pretty_dict[''] =
-#             # pretty_dict[''] =
-#             # pretty_dict[''] =
-#             # pretty_dict[''] =
-
-#         # else:
-#         # 	print (k,v)
-#         # 	del k[v]
-#             #v['check'] = keys
-# print(pretty_dict)
-
+#Candid value, e.g: 643106264215010003, is the key of new dict, whereas it is a value in candidates
+#Match the two dictionaries based on this similarity, add the key/values from new dict to candidates
 for keys, values in new_dict.items():
 	for k,v in candidates.items():
 		if v['candid'] == keys:
 		    #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
 		    v['max alt hours after 7pm'] = values['time']
 		    v['max alt'] = values['maximum altitude']
-		    #v['check'] = keys
-
-
 
 
 #The table is flipped at first
 final_form_flipped = pd.DataFrame(candidates)
-print final_form_flipped
+
 #Simply transpose the table to fix this
 final_form = final_form_flipped.T 
-print(final_form)
-print('+++++++')
-#Delete Rows which didn't make the observing cut (Above 30 deg for 3 hours min)
-final_form = final_form.dropna()
-print(final_form)
+
 
 #Pull only the 'useful' columns to the table. Note: There is way more availble columns to pull. Talk to Dr. C
-final_useful = final_form[['max alt hours after 7pm', 'max alt','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb', 'filter']]
+final_form = final_form[['max alt hours after 7pm', 'max alt','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb', 'filter']]
+
+#Delete Rows which didn't make the observing cut (Above 30 deg for 3 hours min)
+final_form = final_form.dropna()
 
 #Order the table first by ascending time. If two objects reach their peak alt at same time, have higher alt go first
-double_sorted = final_useful.sort_values(by = ['max alt hours after 7pm', 'max alt'], ascending=[True, False])
+double_sorted = final_form.sort_values(by = ['max alt hours after 7pm', 'max alt'], ascending=[True, False])
 
-#Cut out objects that don't go above an altitude of 35 degrees during our observing time
-sorted_with_cuts = double_sorted.drop(double_sorted[double_sorted['max alt'] < 35].index)
 
 #Give the index the proper name: ZTF candidate ID
-sorted_with_cuts =  sorted_with_cuts.rename_axis('ZTF candidate ID')
+sorted_with_cuts =  double_sorted.rename_axis('ZTF candidate ID')
 
 
 #CSV filename
@@ -215,11 +162,7 @@ csv_file = today + '_organized_output_ZTF_data.csv'
 sorted_with_cuts.to_csv(csv_file)
 
 print(sorted_with_cuts)
-
-
-
-
-
+print "See " + csv_file + " for more details"
 
 
 

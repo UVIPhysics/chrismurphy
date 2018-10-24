@@ -14,7 +14,7 @@ import json
 
 
 # (user friendly) command line interfaces
-parser = argparse.ArgumentParser(description='Download transient candidates from MARS',
+parser = argparse.ArgumentParser(description='Download transient candidates from MARS, find which ones are good candidates to observe with VIRT',
                                  epilog='Use -h for help')
 
 #Lower Date, default = Yesterday
@@ -39,20 +39,27 @@ parser.add_argument("-rb",
 
 
 #Observing start time, Default = tonight 7pm AST 
-parser.add_argument("-o", 
+parser.add_argument("-ot", 
                     "--observingTime", 
                     help="The day and hour you will begin observing - format: YYYY-MM-DD-HH:MM:SS.sss - Default = Today 7pm", 
                     required=False)
 
-start_end_rb = vars(parser.parse_args()) # Pupose of the vars is to change a Namespace object to a dictionary object
-print(start_end_rb)
+#Observing length, Default = 4 hours, Minimum is 3 because of altitude time cut off limit
+parser.add_argument("-ol", 
+                    "--observingLength", 
+                    help="The amount of hours you plan to observe for (Minimum input = 3) - format: N - Default = 4 Hours", 
+                    required=False)
+
+
+cl_arguments = vars(parser.parse_args()) # Pupose of the vars is to change a Namespace object to a dictionary object
+print(cl_arguments)
 
 
 
 
 
-# We will be observing the most interesting transients discovered by ZTF that occured over the last 24 hours
-# For that we need to input todays and yesterdays date into MARS API
+# We will be observing the most interesting transients discovered by ZTF that occured between the upper and lower dates
+# For that we need to input upper and lower date into MARS API - default = today and yesterday
 today = datetime.utcnow()
 print(today)
 timeOffSet = timedelta(hours = 4) #Differnce between UTC and AST
@@ -74,6 +81,10 @@ lower_date = yesterday.split(' ')[0]
 
 #Real-bogus default threshold
 rb = .90
+
+
+#Default observing length = 4 hours
+observing_length = [0, 1, 2, 3, 4] #Create list of 0-4
 
 '''
 Observing time default = Tonight 7pm
@@ -97,18 +108,26 @@ If the optional arparse commands WERE implemented, change the values of the API 
 
 '''
 
-if start_end_rb['lower'] is not None:
-    lower_date = start_end_rb['lower']
+if cl_arguments['lower'] is not None:
+    lower_date = cl_arguments['lower']
 
-if start_end_rb['upper'] is not None:
-    upper_date = start_end_rb['upper']
+if cl_arguments['upper'] is not None:
+    upper_date = cl_arguments['upper']
 
-if start_end_rb['realbogus'] is not None:
-    rb = start_end_rb['realbogus']
+if cl_arguments['realbogus'] is not None:
+    rb = cl_arguments['realbogus']
 
-if start_end_rb['observingTime'] is not None:
-    observing_time = start_end_rb['observingTime']
+if cl_arguments['observingTime'] is not None:
+    observing_time = cl_arguments['observingTime']
     observing_time = Time(observing_time, format = 'isot', scale = 'utc') 
+
+if cl_arguments['observingLength'] is not None:
+    observing_length = cl_arguments['observingLength']
+    ol = int(observing_length) + 1
+    observing_length = list(range(ol))
+
+
+
 
 print("Observations begin: " + str(observing_time) + " UTC") 
 print('\n')
@@ -208,9 +227,7 @@ print('\n')
 
 
 
-
-four_hours = [0, 1, 2, 3, 4] #Create list of 0-4
-time_change = four_hours*u.hour # let astropy know that every number represents an hour
+time_change = observing_length*u.hour # let astropy know that every number represents an hour
 
 candidate_az_alt = {}
 
@@ -244,7 +261,7 @@ for k, v in candidate_az_alt.items():
     time_max_alt = {}
     max_alt = max(v['altitude']) #Find the maximum altitude for that candidate
     maxindex = v['altitude'].index(max_alt) #Find the hours after observing start time candidate reaches max alt
-    max_time = four_hours[maxindex] 
+    max_time = observing_length[maxindex] 
     time_max_alt['time'] = float(max_time)
     time_max_alt['maximum altitude'] = float(max_alt)
     max_alt_dict[k] = time_max_alt
@@ -284,6 +301,8 @@ sorted_with_cuts =  double_sorted.rename_axis('ZTF candidate ID')
 #Change the hours after column to be times rather than others after 7pm
 # sorted_with_cuts['max alt hours after 7pm'] =  pd.to_datetime(raw_data['Mycol'], format='%d%b%Y:%H:%M:%S.%f')
 
+#Final table for observers, only important columns
+final_table = sorted_with_cuts[['max alt hours after 7pm','ra','dec','magap','magpsf', 'filter']]
 
 #CSV filename
 observing_file_name = str(observing_time)
@@ -292,9 +311,9 @@ csv_file = observing_file_name + '_organized_output_ZTF_data.csv'
 
 
 #Write final table () to csv file 
-sorted_with_cuts.to_csv(csv_file)
+final_table.to_csv(csv_file)
 
-print(sorted_with_cuts)
+print(final_table)
 print "See " + csv_file + " for more details"
 
 
@@ -303,9 +322,9 @@ print "See " + csv_file + " for more details"
 # for k, v in candidate_az_alt.items():
 #   max_alt = max(v['altitude'])
 #   maxindex = v['altitude'].index(max_alt)
-#   max_time = four_hours[maxindex]
+#   max_time = observing_length[maxindex]
 #   if max_alt > 35:
-#       plt.scatter(four_hours, v['altitude'])
+#       plt.scatter(observing_length, v['altitude'])
 #       plt.scatter(max_time, max_alt)
 #       plt.annotate(str(max_alt) + ' occurs at ' + str(max_time), xy=(max_time, max_alt), xytext = (max_time, max_alt - 10))
 #       plt.ylim(0, 90)

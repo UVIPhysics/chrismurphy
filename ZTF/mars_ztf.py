@@ -41,7 +41,7 @@ parser.add_argument("-rb",
 #Observing start time, Default = tonight 7pm AST 
 parser.add_argument("-ot", 
                     "--observingTime", 
-                    help="The day and hour you will begin observing - format: YYYY-MM-DD-HH:MM:SS.sss - Default = Today 7pm", 
+                    help="The day and hour you will begin observing - format: YYYY-MM-DDTHH:MM:SS.sss - Default = Today 7pm", 
                     required=False)
 
 #Observing length, Default = 4 hours, Minimum is 3 because of altitude time cut off limit
@@ -104,6 +104,7 @@ If the optional argparse commands WERE NOT implemented, use the default API inpu
     Upper = today
     Lower = yesterday
     RB = .9
+    observing length = 4 hours
 If the optional arparse commands WERE implemented, change the values of the API inputs to be the inputs
 
 '''
@@ -274,7 +275,7 @@ for keys, values in max_alt_dict.items():
     for k,v in candidates.items():
         if v['candid'] == keys:
             #v['max alt time'] = (observing_time + values['time']*u.hour) This is ideal but don't know how to sort by Time object
-            v['max alt hours after 7pm'] = values['time']
+            v['time of max alt'] = values['time']
             v['max alt'] = values['maximum altitude']
 
 
@@ -286,13 +287,13 @@ final_form = final_form_flipped.T
 
 
 #Pull only the 'useful' columns to the table. Note: There is way more availble columns to pull. Talk to Dr. C
-final_form = final_form[['max alt hours after 7pm', 'max alt','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb', 'filter']]
+final_form = final_form[['time of max alt', 'max alt','ra','dec','candid','magap','magpsf','distnr','classtar', 'rb', 'filter']]
 
 #Delete Rows which didn't make the observing cut (Above 30 deg for 3 hours min)
 final_form = final_form.dropna()
 
 #Order the table first by ascending time. If two objects reach their peak alt at same time, have higher alt go first
-double_sorted = final_form.sort_values(by = ['max alt hours after 7pm', 'max alt'], ascending=[True, False])
+double_sorted = final_form.sort_values(by = ['time of max alt', 'max alt'], ascending=[True, False])
 
 
 #Give the index the proper name: ZTF candidate ID
@@ -301,8 +302,13 @@ sorted_with_cuts =  double_sorted.rename_axis('ZTF candidate ID')
 #Change the hours after column to be times rather than others after 7pm
 # sorted_with_cuts['max alt hours after 7pm'] =  pd.to_datetime(raw_data['Mycol'], format='%d%b%Y:%H:%M:%S.%f')
 
+#Convert hours after to datetime 
+for index, row in sorted_with_cuts.iterrows():
+    row['time of max alt'] = (observing_time + row['time of max alt']*u.hour)
+    
+
 #Final table for observers, only important columns
-final_table = sorted_with_cuts[['max alt hours after 7pm','ra','dec','magap','magpsf', 'filter']]
+final_table = sorted_with_cuts[['time of max alt','ra','dec','magap','magpsf', 'filter']]
 
 #CSV filename
 observing_file_name = str(observing_time)
